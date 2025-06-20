@@ -1,0 +1,83 @@
+// Indonesia-specific constants
+export const INDONESIA = {
+  COUNTRY_CODE: 'ID',
+  CURRENCY: 'IDR',
+  TIMEZONE: 'Asia/Jakarta',
+  PHONE_PREFIX: '+62',
+  LANGUAGES: ['id', 'en'] as const,
+  DEFAULT_LANGUAGE: 'id' as const,
+} as const;
+
+// Indonesian provinces and major cities
+export const PROVINCES = [
+  'Aceh',
+  'Sumatera Utara',
+  'Sumatera Barat',
+  'Riau',
+  'Kepulauan Riau',
+  'Jambi',
+  'Sumatera Selatan',
+  'Bangka Belitung',
+  'Bengkulu',
+  'Lampung',
+  'DKI Jakarta',
+  'Jawa Barat',
+  'Banten',
+  'Jawa Tengah',
+  'DI Yogyakarta',
+  'Jawa Timur',
+  'Bali',
+  'Nusa Tenggara Barat',
+  'Nusa Tenggara Timur',
+  'Kalimantan Barat',
+  'Kalimantan Tengah',
+  'Kalimantan Selatan',
+  'Kalimantan Timur',
+  'Kalimantan Utara',
+  'Sulawesi Utara',
+  'Gorontalo',
+  'Sulawesi Tengah',
+  'Sulawesi Barat',
+  'Sulawesi Selatan',
+  'Sulawesi Tenggara',
+  'Maluku',
+  'Maluku Utara',
+  'Papua',
+  'Papua Barat',
+] as const;
+
+export const MAJOR_CITIES = [
+  'Jakarta',
+  'Surabaya',
+  'Bandung',
+  'Bekasi',
+  'Medan',
+  'Depok',
+  'Tangerang',
+  'Palembang',
+  'Semarang',
+  'Makassar',
+  'Batam',
+  'Bogor',
+  'Pekanbaru',
+  'Bandar Lampung',
+  'Yogyakarta',
+] as const;
+
+// Indonesian payment methods
+export const PAYMENT_METHODS = {
+  DIGITAL_WALLETS: ['gopay', 'ovo', 'dana', 'linkaja'] as const,
+  BANKS: [
+    'bca',
+    'mandiri',
+    'bni',
+    'bri',
+    'cimb',
+    'danamon',
+    'permata',
+    'maybank',
+    'ocbc',
+    'hsbc',
+  ] as const,
+  CARDS: ['visa', 'mastercard', 'jcb'] as const,
+} as const;
