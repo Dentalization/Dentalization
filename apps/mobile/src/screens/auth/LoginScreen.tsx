@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
-import { Text, TextInput, Button, Checkbox } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, TextInput as RNTextInput } from 'react-native';
+import { Text, TextInput, Button, Checkbox, IconButton } from 'react-native-paper';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useForm, Controller } from 'react-hook-form';
@@ -16,6 +16,99 @@ interface LoginFormData {
   rememberMe: boolean;
 }
 
+// Custom Password Input Component to avoid autofill issues
+interface CustomPasswordInputProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  error?: boolean;
+  style?: any;
+  placeholder?: string;
+}
+
+const CustomPasswordInput: React.FC<CustomPasswordInputProps> = ({
+  label,
+  value,
+  onChangeText,
+  error,
+  style,
+  placeholder
+}) => {
+  const [isSecure, setIsSecure] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
+  const [internalValue, setInternalValue] = useState(value);
+  
+  React.useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
+
+  const handleChangeText = (text: string) => {
+    setInternalValue(text);
+    onChangeText(text);
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
+  return (
+    <View style={[styles.customPasswordContainer, style]}>
+      <Text style={[styles.customPasswordLabel, error && styles.errorLabel]}>
+        {label}
+      </Text>
+      <View style={[
+        styles.customPasswordInputContainer, 
+        error && styles.errorBorder,
+        isFocused && styles.focusedBorder
+      ]}>
+        <RNTextInput
+          style={[
+            styles.customPasswordInput,
+            // Force override any system styling
+            {
+              backgroundColor: 'transparent',
+              color: '#333333',
+            }
+          ]}
+          value={internalValue}
+          onChangeText={handleChangeText}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          secureTextEntry={isSecure}
+          placeholder={placeholder}
+          placeholderTextColor="#666"
+          autoCorrect={false}
+          autoCapitalize="none"
+          autoComplete="new-password"
+          textContentType="newPassword"
+          keyboardType="default"
+          importantForAutofill="no"
+          selectTextOnFocus={false}
+          passwordRules=""
+          spellCheck={false}
+          clearButtonMode="never"
+          enablesReturnKeyAutomatically={false}
+          // Additional props to prevent autofill
+          dataDetectorTypes="none"
+          editable={true}
+          multiline={false}
+        />
+        <IconButton
+          icon={isSecure ? 'eye-off' : 'eye'}
+          size={20}
+          iconColor="#666"
+          style={styles.eyeIconButton}
+          onPress={() => setIsSecure(!isSecure)}
+        />
+      </View>
+    </View>
+  );
+};
+
 const LoginScreen: React.FC = () => {
   const route = useRoute<LoginScreenRouteProp>();
   const navigation = useNavigation<LoginScreenNavigationProp>();
@@ -23,7 +116,6 @@ const LoginScreen: React.FC = () => {
   const userType = route.params?.userType;
   
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const {
     control,
@@ -106,36 +198,39 @@ const LoginScreen: React.FC = () => {
         {/* Login Form */}
         <View style={styles.form}>
           {/* Email Input */}
-          <Controller
-            control={control}
-            rules={{
-              required: 'Email harus diisi',
-              pattern: {
-                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                message: 'Format email tidak valid',
-              },
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                label="Email"
-                mode="outlined"
-                value={value}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                error={!!errors.email}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                style={styles.input}
-                outlineColor={errors.email ? '#E53E3E' : '#D0D0D0'}
-                activeOutlineColor={errors.email ? '#E53E3E' : '#483AA0'}
-              />
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email *</Text>
+            <Controller
+              control={control}
+              rules={{
+                required: 'Email harus diisi',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Format email tidak valid',
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput
+                  placeholder="Masukan email"
+                  mode="outlined"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  error={!!errors.email}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  style={styles.input}
+                  outlineColor={errors.email ? '#E53E3E' : '#D0D0D0'}
+                  activeOutlineColor={errors.email ? '#E53E3E' : '#483AA0'}
+                />
+              )}
+              name="email"
+            />
+            {errors.email && (
+              <Text style={styles.errorText}>{errors.email.message}</Text>
             )}
-            name="email"
-          />
-          {errors.email && (
-            <Text style={styles.errorText}>{errors.email.message}</Text>
-          )}
+          </View>
 
           {/* Password Input */}
           <Controller
@@ -148,24 +243,12 @@ const LoginScreen: React.FC = () => {
               },
             }}
             render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                label="Password"
-                mode="outlined"
+              <CustomPasswordInput
+                label="Password *"
                 value={value}
-                onBlur={onBlur}
                 onChangeText={onChange}
                 error={!!errors.password}
-                secureTextEntry={!showPassword}
-                autoComplete="password"
-                style={styles.input}
-                outlineColor={errors.password ? '#E53E3E' : '#D0D0D0'}
-                activeOutlineColor={errors.password ? '#E53E3E' : '#483AA0'}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? 'eye-off' : 'eye'}
-                    onPress={() => setShowPassword(!showPassword)}
-                  />
-                }
+                placeholder="Masukkan password"
               />
             )}
             name="password"
@@ -288,6 +371,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: '#FFFFFF',
   },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333333',
+    marginBottom: 8,
+  },
   errorText: {
     color: '#E53E3E',
     fontSize: 14,
@@ -337,7 +429,7 @@ const styles = StyleSheet.create({
   testCredentials: {
     fontSize: 12,
     color: '#6E6E6E',
-    fontFamily: 'monospace',
+    // Using default system font instead of monospace for better compatibility
   },
   registerContainer: {
     flexDirection: 'row',
@@ -352,6 +444,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#483AA0',
     fontWeight: '600',
+  },
+  // Custom Password Input Styles
+  customPasswordContainer: {
+    marginBottom: 16,
+  },
+  customPasswordLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  errorLabel: {
+    color: '#B71C1C',
+  },
+  customPasswordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    minHeight: 48,
+  },
+  errorBorder: {
+    borderColor: '#B71C1C',
+  },
+  focusedBorder: {
+    borderColor: '#483AA0',
+    borderWidth: 2,
+  },
+  customPasswordInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333333',
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+  },
+  eyeIconButton: {
+    margin: 0,
   },
 });
 
