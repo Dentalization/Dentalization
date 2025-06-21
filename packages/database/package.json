@@ -1,0 +1,55 @@
+{
+  "name": "@dentalization/database",
+  "version": "1.0.0",
+  "description": "Hybrid database configuration for Dentalization - PostgreSQL + MongoDB + Vector DB",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "studio": "prisma studio",
+    "seed": "tsx prisma/seed.ts",
+    "reset": "prisma migrate reset",
+    "deploy": "prisma migrate deploy",
+    "mongo:seed": "tsx mongodb/seed.ts",
+    "vector:setup": "tsx vector/setup.ts",
+    "setup:all": "npm run generate && npm run mongo:seed && npm run vector:setup && npm run seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.8.0",
+    "mongoose": "^8.0.3",
+    "@pinecone-database/pinecone": "^1.1.2",
+    "bcryptjs": "^2.4.3",
+    "uuid": "^9.0.1",
+    "dotenv": "^16.3.1",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/uuid": "^9.0.7",
+    "@types/jsonwebtoken": "^9.0.5",
+    "prisma": "^5.8.0",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./postgresql": {
+      "types": "./dist/postgresql/index.d.ts",
+      "default": "./dist/postgresql/index.js"
+    },
+    "./mongodb": {
+      "types": "./dist/mongodb/index.d.ts",
+      "default": "./dist/mongodb/index.js"
+    },
+    "./vector": {
+      "types": "./dist/vector/index.d.ts",
+      "default": "./dist/vector/index.js"
+    }
+  }
+}

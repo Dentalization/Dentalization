@@ -1,0 +1,268 @@
+// This is your Prisma schema file for PostgreSQL
+// PostgreSQL handles: Users, Authentication, Appointments, Payments, Clinics
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================
+// USER MANAGEMENT & AUTHENTICATION
+// =====================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole
+  status    UserStatus @default(PENDING)
+  
+  // Basic Info
+  firstName String
+  lastName  String
+  phone     String?
+  avatar    String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+  
+  // Relationships
+  patient   Patient?
+  dentist   Dentist?
+  sessions  Session[]
+  
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  accessToken  String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+// =====================================
+// PATIENT PROFILE
+// =====================================
+
+model Patient {
+  id     String @id @default(cuid())
+  userId String @unique
+  
+  // Personal Info
+  dateOfBirth DateTime?
+  gender      Gender?
+  address     String?
+  
+  // Emergency Contact
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  
+  // Medical Info (basic - detailed records in MongoDB)
+  bloodType   String?
+  allergies   String?
+  medications String?
+  
+  // Relationships
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  payments     Payment[]
+  
+  @@map("patients")
+}
+
+// =====================================
+// DENTIST PROFILE
+// =====================================
+
+model Dentist {
+  id     String @id @default(cuid())
+  userId String @unique
+  
+  // Professional Info
+  licenseNumber    String    @unique
+  specializations  String[]  // Array of specializations
+  yearsExperience  Int?
+  education        String?
+  
+  // Verification
+  isVerified       Boolean   @default(false)
+  verifiedAt       DateTime?
+  verificationDocs String[]  // Array of document URLs
+  
+  // Practice Info
+  clinicId String?
+  
+  // Relationships
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinic       Clinic?       @relation(fields: [clinicId], references: [id])
+  appointments Appointment[]
+  
+  @@map("dentists")
+}
+
+// =====================================
+// CLINIC MANAGEMENT
+// =====================================
+
+model Clinic {
+  id      String @id @default(cuid())
+  name    String
+  address String
+  phone   String?
+  email   String?
+  
+  // Operating Hours
+  operatingHours Json? // Flexible JSON for complex schedules
+  
+  // Settings
+  timezone String @default("Asia/Jakarta")
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  dentists Dentist[]
+  
+  @@map("clinics")
+}
+
+// =====================================
+// APPOINTMENT SYSTEM
+// =====================================
+
+model Appointment {
+  id        String            @id @default(cuid())
+  patientId String
+  dentistId String
+  
+  // Appointment Details
+  scheduledAt   DateTime
+  duration      Int             @default(60) // minutes
+  status        AppointmentStatus @default(SCHEDULED)
+  type          AppointmentType
+  
+  // Notes
+  notes         String?
+  cancelReason  String?
+  
+  // Payment
+  estimatedCost Decimal?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  dentist  Dentist   @relation(fields: [dentistId], references: [id])
+  payments Payment[]
+  
+  @@map("appointments")
+}
+
+// =====================================
+// PAYMENT SYSTEM
+// =====================================
+
+model Payment {
+  id            String        @id @default(cuid())
+  appointmentId String
+  patientId     String
+  
+  // Payment Details
+  amount        Decimal
+  currency      String        @default("IDR")
+  status        PaymentStatus @default(PENDING)
+  method        PaymentMethod
+  
+  // Transaction Info
+  transactionId String?       @unique
+  paidAt        DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  patient     Patient     @relation(fields: [patientId], references: [id])
+  
+  @@map("payments")
+}
+
+// =====================================
+// ENUMS
+// =====================================
+
+enum UserRole {
+  PATIENT
+  DENTIST
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AppointmentType {
+  CONSULTATION
+  CLEANING
+  FILLING
+  EXTRACTION
+  ROOT_CANAL
+  CROWN
+  BRIDGE
+  ORTHODONTICS
+  SURGERY
+  EMERGENCY
+  FOLLOW_UP
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  E_WALLET
+  INSURANCE
+}
