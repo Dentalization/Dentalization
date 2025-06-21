@@ -8,7 +8,7 @@ import WelcomeScreen from '../screens/auth/WelcomeScreen';
 
 export type AuthStackParamList = {
   Welcome: undefined;
-  Login: undefined;
+  Login: { userType?: 'patient' | 'dentist' };
   Register: { userType?: 'patient' | 'dentist' };
   ForgotPassword: undefined;
 };

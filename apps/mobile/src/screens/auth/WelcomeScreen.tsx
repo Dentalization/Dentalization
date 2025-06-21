@@ -1,94 +1,137 @@
 import React from 'react';
-import { View, StyleSheet, Image } from 'react-native';
-import { Text, Button, Surface } from 'react-native-paper';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme } from '../../contexts/ThemeContext';
+import { AuthStackParamList } from '../../navigation/AuthNavigator';
+
+type WelcomeScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Welcome'>;
 
 const WelcomeScreen: React.FC = () => {
   const { theme } = useTheme();
+  const navigation = useNavigation<WelcomeScreenNavigationProp>();
+
+  const handleRoleSelection = (role: 'patient' | 'dentist') => {
+    // Navigate to Login screen with role parameter
+    navigation.navigate('Login', { userType: role });
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Surface style={[styles.surface, { backgroundColor: theme.colors.surface }]}>
-        {/* Placeholder for logo */}
-        <View style={[styles.logoPlaceholder, { backgroundColor: theme.colors.primary }]}>
-          <Text style={styles.logoText}>🦷</Text>
+    <View style={[{ 
+      flex: 1, 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      padding: 20, 
+      backgroundColor: '#F2F1F8' // lightBackground from DentalizationColors
+    }]}>
+      <View style={[{ 
+        padding: 32, 
+        borderRadius: 20, 
+        alignItems: 'center', 
+        width: '100%', 
+        maxWidth: 350, 
+        elevation: 8,
+        shadowColor: '#483AA020',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        backgroundColor: '#FFFFFF' // white surface
+      }]}>
+        {/* Logo */}
+        <View style={[{ 
+          width: 100, 
+          height: 100, 
+          borderRadius: 50, 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          marginBottom: 32,
+          backgroundColor: '#F2F1F8',
+          padding: 8
+        }]}>
+          <Image 
+            source={require('../../../assets/logo.png')}
+            style={{ width: 84, height: 84 }}
+            resizeMode="contain"
+          />
         </View>
         
-        <Text style={[styles.title, { color: theme.colors.text }]}>
+        <Text 
+          style={[{ 
+            fontSize: 28, 
+            fontWeight: 'bold', 
+            textAlign: 'center', 
+            marginBottom: 12, 
+            color: '#333333', // darkGrey from DentalizationColors
+            lineHeight: 34
+          }]}
+        >
           Selamat Datang di Dentalization
         </Text>
         
-        <Text style={[styles.subtitle, { color: theme.colors.text }]}>
+        <Text 
+          style={[{ 
+            fontSize: 16, 
+            textAlign: 'center', 
+            marginBottom: 40, 
+            color: '#6E6E6E', // midGrey from DentalizationColors
+            lineHeight: 24,
+            paddingHorizontal: 8
+          }]}
+        >
           Platform perawatan gigi pintar untuk Indonesia
         </Text>
         
-        <View style={styles.buttonContainer}>
-          <Button
-            mode="contained"
-            style={[styles.button, { backgroundColor: theme.colors.primary }]}
-            labelStyle={{ color: 'white' }}
+        <View style={[{ width: '100%', gap: 16 }]}>
+          <TouchableOpacity 
+            style={[{ 
+              backgroundColor: '#483AA0', // primary from DentalizationColors
+              paddingVertical: 18, 
+              paddingHorizontal: 32, 
+              borderRadius: 12, 
+              alignItems: 'center',
+              elevation: 3,
+              shadowColor: '#483AA0',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4
+            }]}
+            onPress={() => handleRoleSelection('patient')}
           >
-            Masuk sebagai Pasien
-          </Button>
+            <Text style={[{ 
+              color: '#FFFFFF', 
+              fontWeight: '600', 
+              fontSize: 16,
+              letterSpacing: 0.5
+            }]}>
+              Masuk sebagai Pasien
+            </Text>
+          </TouchableOpacity>
           
-          <Button
-            mode="outlined"
-            style={[styles.button, { borderColor: theme.colors.primary }]}
-            labelStyle={{ color: theme.colors.primary }}
+          <TouchableOpacity 
+            style={[{ 
+              backgroundColor: 'transparent', 
+              paddingVertical: 18, 
+              paddingHorizontal: 32, 
+              borderRadius: 12, 
+              alignItems: 'center',
+              borderWidth: 2,
+              borderColor: '#483AA0' // primary from DentalizationColors
+            }]}
+            onPress={() => handleRoleSelection('dentist')}
           >
-            Masuk sebagai Dokter
-          </Button>
+            <Text style={[{ 
+              color: '#483AA0', // primary from DentalizationColors
+              fontWeight: '600', 
+              fontSize: 16,
+              letterSpacing: 0.5
+            }]}>
+              Masuk sebagai Dokter
+            </Text>
+          </TouchableOpacity>
         </View>
-      </Surface>
+      </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  surface: {
-    padding: 30,
-    borderRadius: 16,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 350,
-    elevation: 4,
-  },
-  logoPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  logoText: {
-    fontSize: 40,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 32,
-    opacity: 0.7,
-  },
-  buttonContainer: {
-    width: '100%',
-    gap: 12,
-  },
-  button: {
-    paddingVertical: 4,
-  },
-});
 
 export default WelcomeScreen;

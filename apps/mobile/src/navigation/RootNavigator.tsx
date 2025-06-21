@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import AuthNavigator from './AuthNavigator';
 import PatientNavigator from './PatientNavigator';
 import DentistNavigator from './DentistNavigator';
-import AdminNavigator from './AdminNavigator';
 import LoadingScreen from '../screens/shared/LoadingScreen';
 
 const Stack = createStackNavigator();
@@ -26,13 +25,10 @@ const RootNavigator: React.FC = () => {
     case 'patient':
       return <PatientNavigator />;
     case 'dentist':
+    case 'clinic_staff': // Clinic staff uses dentist interface
       return <DentistNavigator />;
-    case 'admin':
-      return <AdminNavigator />;
-    case 'clinic_staff':
-      return <DentistNavigator />; // Clinic staff uses dentist interface
     default:
-      return <AuthNavigator />;
+      return <AuthNavigator />; // Redirect to auth for unknown roles
   }
 };
 
