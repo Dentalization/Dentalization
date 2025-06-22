@@ -12,7 +12,8 @@ export const APP_CONFIG = {
   API: {
     // Toggle between mock and real API service
     // Set to false when your backend is ready and deployed
-    USE_MOCK_SERVICE: true,
+    // Note: Real database authentication will be tried first automatically
+    USE_MOCK_SERVICE: false, // Changed to prefer real database
     
     // Backend API URLs
     BASE_URL: {

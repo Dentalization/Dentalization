@@ -1,0 +1,339 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  DENTIST
+  PATIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum SmokingStatus {
+  NEVER
+  FORMER
+  CURRENT
+  OCCASIONAL
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum ToothCondition {
+  HEALTHY
+  CAVITY
+  FILLED
+  CROWNED
+  MISSING
+  ROOT_CANAL
+  IMPLANT
+  BRIDGE
+}
+
+enum TreatmentStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+// Base User model
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  password    String
+  firstName   String
+  lastName    String
+  phone       String?
+  role        UserRole
+  status      UserStatus @default(ACTIVE)
+  avatar      String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Role-specific profiles
+  adminProfile   Admin?
+  dentistProfile Dentist?
+  patientProfile Patient?
+
+  @@map("users")
+}
+
+// Admin model
+model Admin {
+  id      String @id @default(cuid())
+  userId  String @unique
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  permissions String[] // JSON array of permissions
+
+  @@map("admins")
+}
+
+// Dentist model
+model Dentist {
+  id                String @id @default(cuid())
+  userId            String @unique
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  licenseNumber     String  @unique
+  specialization    String[]
+  yearsOfExperience Int?
+  bio               String?
+  education         String?
+  certifications    String[]
+  
+  // Relationships
+  appointments      Appointment[]
+  treatments        Treatment[]
+  dentalRecords     DentalRecord[]
+  treatmentPlans    TreatmentPlan[]
+
+  @@map("dentists")
+}
+
+// Patient model
+model Patient {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  dateOfBirth     DateTime?
+  gender          Gender?
+  address         String?
+  emergencyContact String?
+  insurance       String?
+  
+  // Relationships
+  appointments    Appointment[]
+  dentalRecords   DentalRecord[]
+  medicalHistory  MedicalHistory?
+  treatmentPlans  TreatmentPlan[]
+  payments        Payment[]
+
+  @@map("patients")
+}
+
+// Medical History model
+model MedicalHistory {
+  id                    String        @id @default(cuid())
+  patientId             String        @unique
+  patient               Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  allergies             String[]
+  medications           String[]
+  medicalConditions     String[]
+  previousSurgeries     String[]
+  smokingStatus         SmokingStatus @default(NEVER)
+  alcoholConsumption    String?
+  pregnancy             Boolean?
+  
+  // Dental specific
+  previousDentalWork    String[]
+  oralHygienHabits      String?
+  lastDentalVisit       DateTime?
+  
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@map("medical_histories")
+}
+
+// Dental Record model
+model DentalRecord {
+  id          String   @id @default(cuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  dentistId   String
+  dentist     Dentist  @relation(fields: [dentistId], references: [id])
+  
+  visitDate   DateTime
+  chiefComplaint String?
+  examination    String?
+  diagnosis      String?
+  treatment      String?
+  notes          String?
+  
+  // Tooth chart data (JSON)
+  toothChart     Json?
+  
+  // Associated files
+  xrayImages     String[] // URLs to X-ray images
+  photos         String[] // URLs to clinical photos
+  documents      String[] // URLs to other documents
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("dental_records")
+}
+
+// Treatment Plan model
+model TreatmentPlan {
+  id            String          @id @default(cuid())
+  patientId     String
+  patient       Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  dentistId     String
+  dentist       Dentist         @relation(fields: [dentistId], references: [id])
+  
+  title         String
+  description   String?
+  estimatedCost Decimal?
+  status        TreatmentStatus @default(PLANNED)
+  startDate     DateTime?
+  endDate       DateTime?
+  
+  // Relationships
+  treatments    Treatment[]
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("treatment_plans")
+}
+
+// Treatment model
+model Treatment {
+  id              String          @id @default(cuid())
+  treatmentPlanId String?
+  treatmentPlan   TreatmentPlan?  @relation(fields: [treatmentPlanId], references: [id])
+  dentistId       String
+  dentist         Dentist         @relation(fields: [dentistId], references: [id])
+  
+  name            String
+  description     String?
+  cost            Decimal?
+  duration        Int?            // Duration in minutes
+  status          TreatmentStatus @default(PLANNED)
+  
+  // Tooth-specific treatment
+  toothNumbers    Int[]           // Which teeth are involved
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("treatments")
+}
+
+// Appointment model
+model Appointment {
+  id          String            @id @default(cuid())
+  patientId   String
+  patient     Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  dentistId   String
+  dentist     Dentist           @relation(fields: [dentistId], references: [id])
+  
+  startTime   DateTime
+  endTime     DateTime
+  title       String
+  description String?
+  status      AppointmentStatus @default(SCHEDULED)
+  
+  // Reminder settings
+  reminderSent Boolean          @default(false)
+  reminderTime DateTime?
+  
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@map("appointments")
+}
+
+// Payment model
+model Payment {
+  id              String        @id @default(cuid())
+  patientId       String
+  patient         Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  amount          Decimal
+  description     String?
+  paymentMethod   String?       // Credit card, cash, insurance, etc.
+  status          PaymentStatus @default(PENDING)
+  
+  transactionId   String?       // External payment processor ID
+  
+  dueDate         DateTime?
+  paidDate        DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+// Treatment Template model (for common procedures)
+model TreatmentTemplate {
+  id              String  @id @default(cuid())
+  name            String
+  description     String?
+  estimatedCost   Decimal?
+  estimatedDuration Int?   // Duration in minutes
+  category        String? // Preventive, Restorative, Cosmetic, etc.
+  
+  // Template steps/procedures
+  steps           Json?   // JSON array of treatment steps
+  
+  isActive        Boolean @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("treatment_templates")
+}
+
+// Clinic Information model
+model ClinicInfo {
+  id              String @id @default(cuid())
+  name            String
+  address         String
+  phone           String
+  email           String?
+  website         String?
+  
+  // Business hours (JSON format)
+  businessHours   Json?
+  
+  // Settings
+  appointmentDuration Int @default(30) // Default appointment duration in minutes
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("clinic_info")
+}

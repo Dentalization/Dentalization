@@ -79,6 +79,8 @@ model Patient {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   payments     Payment[]
+  dentalRecords DentalRecord[]
+  medicalHistory MedicalHistory?
   
   @@map("patients")
 }
@@ -109,6 +111,7 @@ model Dentist {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   clinic       Clinic?       @relation(fields: [clinicId], references: [id])
   appointments Appointment[]
+  dentalRecords DentalRecord[]
   
   @@map("dentists")
 }
@@ -170,8 +173,120 @@ model Appointment {
   patient  Patient   @relation(fields: [patientId], references: [id])
   dentist  Dentist   @relation(fields: [dentistId], references: [id])
   payments Payment[]
+  dentalRecords DentalRecord[]
   
   @@map("appointments")
+}
+
+// =====================================
+// DENTAL RECORDS & MEDICAL HISTORY
+// =====================================
+
+model DentalRecord {
+  id            String   @id @default(cuid())
+  appointmentId String
+  patientId     String
+  dentistId     String
+  
+  // Chief Complaint & History
+  chiefComplaint     String
+  historyOfComplaint String?
+  medicalHistory     String?
+  dentalHistory      String?
+  
+  // Clinical Examination
+  extraOralFindings String?
+  intraOralFindings String?
+  
+  // Diagnosis
+  primaryDiagnosis      String
+  differentialDiagnosis String[]
+  
+  // Treatment
+  treatmentPlan   Json    // Flexible JSON for treatment details
+  treatmentNotes  String?
+  prescriptions   Json?   // Medications prescribed
+  
+  // Images and Files
+  imageUrls    String[] // X-rays, photos, etc.
+  documentUrls String[] // Reports, referrals, etc.
+  
+  // Follow-up
+  nextAppointment DateTime?
+  followUpNotes   String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  patient     Patient     @relation(fields: [patientId], references: [id])
+  dentist     Dentist     @relation(fields: [dentistId], references: [id])
+  
+  @@map("dental_records")
+}
+
+model MedicalHistory {
+  id        String @id @default(cuid())
+  patientId String
+  
+  // Medical Conditions
+  conditions          String[] // Chronic conditions, diseases
+  allergies           String[] // Drug, food, environmental allergies
+  currentMedications  String[] // Current medications
+  previousSurgeries   String[] // Past surgical procedures
+  
+  // Lifestyle Factors
+  smokingStatus    SmokingStatus @default(NON_SMOKER)
+  alcoholConsumption String?
+  exerciseFrequency  String?
+  
+  // Family History
+  familyMedicalHistory String?
+  
+  // Emergency Information
+  emergencyContactName     String
+  emergencyContactPhone    String
+  emergencyContactRelation String
+  
+  // Insurance Information
+  insuranceProvider String?
+  insuranceNumber   String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  patient Patient @relation(fields: [patientId], references: [id])
+  
+  @@unique([patientId]) // One medical history per patient
+  @@map("medical_histories")
+}
+
+model TreatmentTemplate {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  category    String
+  
+  // Treatment Details
+  duration        Int     // minutes
+  estimatedCost   Decimal
+  steps           Json    // Treatment steps
+  materials       String[] // Required materials
+  instructions    String? // Post-treatment instructions
+  
+  // Usage
+  isActive  Boolean @default(true)
+  usageCount Int    @default(0)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("treatment_templates")
 }
 
 // =====================================
@@ -265,4 +380,12 @@ enum PaymentMethod {
   BANK_TRANSFER
   E_WALLET
   INSURANCE
+}
+
+enum SmokingStatus {
+  NON_SMOKER
+  FORMER_SMOKER
+  LIGHT_SMOKER    // Less than 10 cigarettes/day
+  MODERATE_SMOKER // 10-20 cigarettes/day
+  HEAVY_SMOKER    // More than 20 cigarettes/day
 }

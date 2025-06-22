@@ -12,9 +12,22 @@ import {
   RefreshTokenRequest,
   handleApiError 
 } from './api';
+import { realAuthService } from './realAuthService';
 import { APP_CONFIG } from '../config/app';
 
 export class AuthService {
+  /**
+   * Check if real database is available, fallback to API if needed
+   */
+  private async shouldUseRealDatabase(): Promise<boolean> {
+    try {
+      return await realAuthService.healthCheck();
+    } catch (error) {
+      console.warn('Real database not available, will use API fallback');
+      return false;
+    }
+  }
+
   /**
    * Login user with email and password
    */
@@ -22,24 +35,33 @@ export class AuthService {
     try {
       console.log('🔐 Attempting login for:', credentials.email);
       
-      const response = await apiClient.post<AuthApiResponse>(
-        API_CONFIG.ENDPOINTS.AUTH.LOGIN,
-        {
-          email: credentials.email.toLowerCase().trim(),
-          password: credentials.password,
-          rememberMe: credentials.rememberMe || false,
+      // Try real database first, fallback to API
+      const useRealDb = await this.shouldUseRealDatabase();
+      
+      if (useRealDb) {
+        console.log('📊 Using real database for login');
+        return await realAuthService.login(credentials);
+      } else {
+        console.log('🌐 Using API for login');
+        const response = await apiClient.post<AuthApiResponse>(
+          API_CONFIG.ENDPOINTS.AUTH.LOGIN,
+          {
+            email: credentials.email.toLowerCase().trim(),
+            password: credentials.password,
+            rememberMe: credentials.rememberMe || false,
+          }
+        );
+
+        if (!response.success || !response.data) {
+          throw new Error(response.message || 'Login failed');
         }
-      );
 
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Login failed');
+        console.log('✅ Login successful for:', credentials.email);
+        return response.data;
       }
-
-      console.log('✅ Login successful for:', credentials.email);
-      return response.data;
     } catch (error) {
       console.error('❌ Login failed:', error);
-      return handleApiError(error);
+      throw error;
     }
   }
 
@@ -50,28 +72,37 @@ export class AuthService {
     try {
       console.log('📝 Attempting registration for:', userData.email, 'as', userData.role);
       
-      // Prepare registration data
-      const registrationData = {
-        ...userData,
-        email: userData.email.toLowerCase().trim(),
-        firstName: userData.firstName.trim(),
-        lastName: userData.lastName.trim(),
-      };
+      // Try real database first, fallback to API
+      const useRealDb = await this.shouldUseRealDatabase();
+      
+      if (useRealDb) {
+        console.log('📊 Using real database for registration');
+        return await realAuthService.register(userData);
+      } else {
+        console.log('🌐 Using API for registration');
+        // Prepare registration data
+        const registrationData = {
+          ...userData,
+          email: userData.email.toLowerCase().trim(),
+          firstName: userData.firstName.trim(),
+          lastName: userData.lastName.trim(),
+        };
 
-      const response = await apiClient.post<AuthApiResponse>(
-        API_CONFIG.ENDPOINTS.AUTH.REGISTER,
-        registrationData
-      );
+        const response = await apiClient.post<AuthApiResponse>(
+          API_CONFIG.ENDPOINTS.AUTH.REGISTER,
+          registrationData
+        );
 
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Registration failed');
+        if (!response.success || !response.data) {
+          throw new Error(response.message || 'Registration failed');
+        }
+
+        console.log('✅ Registration successful for:', userData.email);
+        return response.data;
       }
-
-      console.log('✅ Registration successful for:', userData.email);
-      return response.data;
     } catch (error) {
       console.error('❌ Registration failed:', error);
-      return handleApiError(error);
+      throw error;
     }
   }
 
@@ -82,20 +113,29 @@ export class AuthService {
     try {
       console.log('🔄 Attempting token refresh...');
       
-      const response = await apiClient.post<AuthApiResponse>(
-        API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-        { refreshToken } as RefreshTokenRequest
-      );
+      // Try real database first, fallback to API
+      const useRealDb = await this.shouldUseRealDatabase();
+      
+      if (useRealDb) {
+        console.log('📊 Using real database for token refresh');
+        return await realAuthService.refreshToken(refreshToken);
+      } else {
+        console.log('🌐 Using API for token refresh');
+        const response = await apiClient.post<AuthApiResponse>(
+          API_CONFIG.ENDPOINTS.AUTH.REFRESH,
+          { refreshToken } as RefreshTokenRequest
+        );
 
-      if (!response.success || !response.data) {
-        throw new Error(response.message || 'Token refresh failed');
+        if (!response.success || !response.data) {
+          throw new Error(response.message || 'Token refresh failed');
+        }
+
+        console.log('✅ Token refresh successful');
+        return response.data;
       }
-
-      console.log('✅ Token refresh successful');
-      return response.data;
     } catch (error) {
       console.error('❌ Token refresh failed:', error);
-      return handleApiError(error);
+      throw error;
     }
   }
 
@@ -106,13 +146,22 @@ export class AuthService {
     try {
       console.log('👋 Attempting logout...');
       
-      const response = await apiClient.post(
-        API_CONFIG.ENDPOINTS.AUTH.LOGOUT,
-        refreshToken ? { refreshToken } : undefined
-      );
+      // Try real database first, fallback to API
+      const useRealDb = await this.shouldUseRealDatabase();
+      
+      if (useRealDb) {
+        console.log('📊 Using real database for logout');
+        await realAuthService.logout(refreshToken);
+      } else {
+        console.log('🌐 Using API for logout');
+        const response = await apiClient.post(
+          API_CONFIG.ENDPOINTS.AUTH.LOGOUT,
+          refreshToken ? { refreshToken } : undefined
+        );
 
-      if (!response.success) {
-        console.warn('⚠️ Logout response not successful, but continuing...');
+        if (!response.success) {
+          console.warn('⚠️ Logout response not successful, but continuing...');
+        }
       }
 
       console.log('✅ Logout successful');
@@ -225,10 +274,20 @@ export class AuthService {
    */
   async healthCheck(): Promise<boolean> {
     try {
+      // Check real database first
+      const dbHealthy = await realAuthService.healthCheck();
+      if (dbHealthy) {
+        console.log('✅ Real database is healthy');
+        return true;
+      }
+
+      // Fallback to API health check
       const response = await apiClient.get('/health');
-      return response.success;
+      const apiHealthy = response.success;
+      console.log(apiHealthy ? '✅ API is healthy' : '⚠️ API is not healthy');
+      return apiHealthy;
     } catch (error) {
-      console.warn('⚠️ Backend API health check failed:', error);
+      console.warn('⚠️ Health check failed for both database and API:', error);
       return false;
     }
   }

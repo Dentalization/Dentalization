@@ -2,56 +2,83 @@
  * Database Integration Test for Mobile App
  * This file tests that the mobile app can properly import and use the database package
  * 
- * ✅ VERIFIED WORKING: June 22, 2025
- * - All database services successfully imported
- * - TypeScript compilation without errors
- * - Cross-package resolution functioning
- * - Hybrid database architecture (PostgreSQL + MongoDB + Vector DB) ready
+ * ✅ UPDATED: June 22, 2025
+ * - Updated for PostgreSQL-only architecture
+ * - Tests new Prisma-based services
+ * - Cross-package resolution with new database package
  */
 
-import { DatabaseClient } from '@dentalization/database';
-import { UserService, PatientService, DentistService } from '@dentalization/database';
-import { DentalRecord, MedicalHistory } from '@dentalization/database';
-import { VectorDBFactory, ImageEmbeddingService } from '@dentalization/database';
+import { 
+  prisma, 
+  UserService, 
+  PatientService, 
+  DentistService, 
+  AdminService,
+  AppointmentService,
+  checkDatabaseHealth,
+  connectDatabase,
+  disconnectDatabase
+} from '@dentalization/database-app';
 
 // Test function to verify database integration
 export async function testDatabaseConnection() {
-  console.log('🔄 Testing database connection from mobile app...');
+  console.log('🔄 Testing PostgreSQL-only database connection from mobile app...');
   
   try {
-    // Test DatabaseClient instantiation
-    const db = DatabaseClient.getInstance();
-    console.log('✅ DatabaseClient instantiated successfully');
+    // Test Prisma client availability
+    console.log('✅ Prisma client imported successfully');
     
     // Test health check
-    const health = await db.healthCheck();
-    console.log('✅ Health check completed:', {
-      postgresql: health.postgresql?.status || 'unavailable',
-      mongodb: health.mongodb?.status || 'unavailable',
-      vectordb: health.vectordb?.status || 'unavailable'
-    });
+    const isHealthy = await checkDatabaseHealth();
+    console.log('✅ Health check completed:', { postgresql: isHealthy ? 'healthy' : 'unavailable' });
     
     // Test service availability
     const services = {
       UserService: !!UserService,
       PatientService: !!PatientService,
       DentistService: !!DentistService,
-      DentalRecord: !!DentalRecord,
-      MedicalHistory: !!MedicalHistory,
-      VectorDBFactory: !!VectorDBFactory,
-      ImageEmbeddingService: !!ImageEmbeddingService,
+      AdminService: !!AdminService,
+      AppointmentService: !!AppointmentService,
+      prismaClient: !!prisma,
     };
     
     console.log('✅ All database services imported:', services);
     
-    return { success: true, health, services };
+    // Test basic connection (optional, only if database is available)
+    try {
+      await connectDatabase();
+      console.log('✅ Database connection test successful');
+      await disconnectDatabase();
+    } catch (connError: any) {
+      console.log('⚠️ Database connection not available (expected in development):', connError?.message || connError);
+    }
+    
+    return { success: true, health: { postgresql: isHealthy }, services };
   } catch (error) {
     console.error('❌ Database connection test failed:', error);
     return { success: false, error };
   }
 }
 
-// Export types for TypeScript checking
+// Mock data structures for development
+export const mockPatientData = {
+  id: 'mock-patient-1',
+  userId: 'mock-user-1',
+  dateOfBirth: new Date('1990-01-01'),
+  gender: 'MALE' as const,
+  address: '123 Main St, Jakarta',
+  emergencyContact: '+62-812-3456-7890',
+  insurance: 'BPJS Kesehatan',
+};
+
+export const mockDentistData = {
+  id: 'mock-dentist-1',
+  userId: 'mock-user-2',
+  licenseNumber: 'DRG-12345',
+  specialization: ['General Dentistry', 'Orthodontics'],
+  yearsOfExperience: 10,
+  bio: 'Experienced dentist specializing in general and orthodontic care',
+};
 export type DatabaseTestResult = {
   success: boolean;
   health?: any;
