@@ -1,0 +1,49 @@
+{
+  "folders": [
+    {
+      "name": "Mobile App",
+      "path": "./apps/mobile"
+    },
+    {
+      "name": "Database API",
+      "path": "./apps/database"
+    },
+    {
+      "name": "Web App",
+      "path": "./apps/web"
+    }
+  ],
+  "settings": {
+    "typescript.preferences.includePackageJsonAutoImports": "off",
+    "typescript.suggest.autoImports": false,
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.expo": true,
+      "**/.turbo": true,
+      "packages/**": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.expo": true,
+      "**/.turbo": true,
+      "packages/**": true
+    },
+    "typescript.exclude": [
+      "**/node_modules",
+      "**/dist",
+      "**/build",
+      "packages/**"
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-vscode.vscode-typescript-next",
+      "bradlc.vscode-tailwindcss",
+      "expo.vscode-expo-tools"
+    ]
+  }
+}

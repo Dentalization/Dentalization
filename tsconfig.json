@@ -24,20 +24,9 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@dentalization/shared-types": [
-        "./packages/shared-types/src"
-      ],
-      "@dentalization/ui-components": [
-        "./packages/ui-components/src"
-      ],
-      "@dentalization/utils": [
-        "./packages/utils/src"
-      ],
-      "@dentalization/config": [
-        "./packages/config/src"
-      ],
-      "@dentalization/constants": [
-        "./packages/constants/src"
+      // Local app references only
+      "@dentalization/database-app": [
+        "./apps/database"
       ]
     }
   },
@@ -51,7 +40,12 @@
     "dist",
     "build",
     ".next",
-    "coverage"
+    "coverage",
+    "packages/**",
+    "**/test*.ts",
+    "**/test*.js",
+    "**/*.test.ts",
+    "**/*.test.js"
   ],
   "extends": "expo/tsconfig.base"
 }
