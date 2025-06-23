@@ -13,11 +13,11 @@ export const APP_CONFIG = {
     // Toggle between mock and real API service
     // Set to false when your backend is ready and deployed
     // Note: Real database authentication will be tried first automatically
-    USE_MOCK_SERVICE: false, // Changed to prefer real database
+    USE_MOCK_SERVICE: false, // Using real backend now that we have PostgreSQL setup
     
     // Backend API URLs
     BASE_URL: {
-      DEVELOPMENT: 'http://localhost:3001/api',
+      DEVELOPMENT: 'http://localhost:3000/api',
       PRODUCTION: 'https://api.dentalization.com/api',
     },
     

@@ -254,26 +254,31 @@ const RegisterScreen: React.FC = () => {
     formState: { errors },
     reset,
     setValue,
+    clearErrors,
   } = useForm<any>();
-
-  const watchPassword = watch('password', '');
 
   // Populate form with existing data when step changes
   React.useEffect(() => {
-    if (currentStep === 2 && userType === 'patient') {
-      // Populate patient info step
-      if (formData.dateOfBirth) setValue('dateOfBirth', formData.dateOfBirth);
-      if (formData.gender) setValue('gender', formData.gender);
-      if (formData.emergencyContactName) setValue('emergencyContactName', formData.emergencyContactName);
-      if (formData.emergencyContactPhone) setValue('emergencyContactPhone', formData.emergencyContactPhone);
+    console.log('📋 UseEffect triggered - currentStep:', currentStep, 'userType:', userType);
+    console.log('📋 FormData available:', formData);
+    
+    // Clear ALL errors when changing steps to prevent cross-contamination
+    clearErrors();
+    console.log('🧹 Cleared all form errors for step:', currentStep);
+    
+    // Always reset form with current formData to ensure fields are populated
+    if (Object.keys(formData).length > 0) {
+      console.log('🔄 Resetting form with formData:', formData);
+      reset(formData);
     }
-  }, [currentStep, formData, setValue, userType]);
+  }, [currentStep, formData, reset, userType, clearErrors]);
 
   const getUserTypeLabel = () => {
     return userType === 'patient' ? 'Pasien' : 'Dokter';
   };
 
   const getStepTitle = () => {
+    console.log('📋 Getting step title for step:', currentStep);
     switch (currentStep) {
       case 1:
         return 'Informasi Dasar';
@@ -291,20 +296,26 @@ const RegisterScreen: React.FC = () => {
   };
 
   const validateStep = (data: any): boolean => {
+    console.log('🔍 Validating step:', currentStep, 'with data:', data);
+    
     switch (currentStep) {
       case 1: // Basic Info
         if (!data.firstName || !data.lastName || !data.email || !data.password) {
+          console.log('❌ Basic info validation failed - missing required fields');
           Alert.alert('Error', 'Semua field wajib diisi');
           return false;
         }
         if (data.password !== data.confirmPassword) {
+          console.log('❌ Password confirmation mismatch');
           Alert.alert('Error', 'Password dan konfirmasi password tidak cocok');
           return false;
         }
         if (data.password.length < 6) {
+          console.log('❌ Password too short');
           Alert.alert('Error', 'Password minimal 6 karakter');
           return false;
         }
+        console.log('✅ Basic info validation passed');
         return true;
       
       case 2: // Role-specific info
@@ -314,11 +325,14 @@ const RegisterScreen: React.FC = () => {
           if (!data.gender) missingFields.push('Jenis kelamin');
           if (!data.emergencyContactName) missingFields.push('Nama kontak darurat');
           if (!data.emergencyContactPhone) missingFields.push('Nomor kontak darurat');
+          if (!data.address) missingFields.push('Alamat lengkap');
           
           if (missingFields.length > 0) {
+            console.log('❌ Patient info validation failed - missing:', missingFields);
             Alert.alert('Error', `Field berikut harus diisi: ${missingFields.join(', ')}`);
             return false;
           }
+          console.log('✅ Patient info validation passed');
         } else {
           const missingFields = [];
           if (!data.licenseNumber) missingFields.push('Nomor lisensi');
@@ -329,52 +343,94 @@ const RegisterScreen: React.FC = () => {
           if (!data.clinicAddress) missingFields.push('Alamat praktik');
           
           if (missingFields.length > 0) {
+            console.log('❌ Dentist info validation failed - missing:', missingFields);
             Alert.alert('Error', `Field berikut harus diisi: ${missingFields.join(', ')}`);
             return false;
           }
+          console.log('✅ Dentist info validation passed');
         }
         return true;
 
       case 3: // Dentist verification or Terms
         if (userType === 'dentist') {
           if (!data.verificationDocuments) {
+            console.log('❌ Dentist verification failed - missing documents');
             Alert.alert('Error', 'Dokumen verifikasi harus dilengkapi');
             return false;
           }
         } else {
           if (!data.acceptTerms || !data.acceptPrivacy) {
+            console.log('❌ Terms validation failed');
             Alert.alert('Error', 'Anda harus menyetujui syarat dan ketentuan serta kebijakan privasi');
             return false;
           }
         }
+        console.log('✅ Step 3 validation passed');
         return true;
 
       case 4: // Terms for dentist
         if (!data.acceptTerms || !data.acceptPrivacy) {
+          console.log('❌ Final terms validation failed');
           Alert.alert('Error', 'Anda harus menyetujui syarat dan ketentuan serta kebijakan privasi');
           return false;
         }
+        console.log('✅ Final terms validation passed');
         return true;
 
       default:
+        console.log('✅ Default validation passed');
         return true;
     }
   };
 
   const onNextStep = async (data: any) => {
-    if (!validateStep(data)) return;
+    console.log('🔄 onNextStep called with data:', data);
+    console.log('📍 Current step:', currentStep, 'User type:', userType);
+    
+    try {
+      if (!validateStep(data)) {
+        console.log('❌ Validation failed for step:', currentStep);
+        return;
+      }
 
-    const updatedFormData = { ...formData, ...data };
-    setFormData(updatedFormData);
+      console.log('✅ Validation passed');
+      let updatedFormData = { ...formData, ...data };
+      
+      // Remove confirmPassword after step 1 since it's only needed for validation
+      if (currentStep === 1) {
+        const { confirmPassword, ...dataWithoutConfirmPassword } = updatedFormData;
+        updatedFormData = dataWithoutConfirmPassword;
+        console.log('🧹 Removed confirmPassword from form data after step 1');
+        
+        // Clear any confirmPassword errors since we're moving away from step 1
+        clearErrors('confirmPassword');
+        console.log('🧹 Cleared confirmPassword error state');
+      }
+      
+      console.log('📋 Updated form data:', updatedFormData);
+      setFormData(updatedFormData);
 
-    if (currentStep === totalSteps) {
-      // Final step - submit registration
-      await handleRegistration(updatedFormData);
-    } else {
-      // Move to next step
-      setCurrentStep(currentStep + 1);
-      // Reset form but preserve the data for next step
-      reset({});
+      if (currentStep === totalSteps) {
+        console.log('🏁 Final step reached, starting registration...');
+        // Final step - submit registration
+        await handleRegistration(updatedFormData);
+      } else {
+        console.log(`➡️ Moving to next step: ${currentStep + 1}`);
+        // Move to next step
+        const nextStep = currentStep + 1;
+        console.log('📝 Setting current step to:', nextStep);
+        
+        setCurrentStep(nextStep);
+        
+        console.log('✅ Step transition completed');
+      }
+    } catch (error) {
+      console.error('❌ Error in onNextStep:', error);
+      Alert.alert(
+        'Error',
+        'Terjadi kesalahan. Silakan coba lagi.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -383,6 +439,17 @@ const RegisterScreen: React.FC = () => {
     
     try {
       console.log('📝 Starting registration process...');
+      console.log('📋 Form data to register:', finalData);
+      
+      // Convert date string to Date object if needed
+      let dateOfBirth = null;
+      if (finalData.dateOfBirth && userType === 'patient') {
+        // Parse DD/MM/YYYY format
+        const [day, month, year] = finalData.dateOfBirth.split('/');
+        if (day && month && year) {
+          dateOfBirth = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        }
+      }
       
       // Prepare registration data for API
       const registrationData = {
@@ -394,6 +461,9 @@ const RegisterScreen: React.FC = () => {
         phone: finalData.phoneNumber,
         // Patient-specific fields
         ...(userType === 'patient' && {
+          dateOfBirth: dateOfBirth,
+          gender: finalData.gender?.toUpperCase() as 'MALE' | 'FEMALE' | 'OTHER', // Convert to match enum
+          address: finalData.address,
           emergencyContactName: finalData.emergencyContactName,
           emergencyContactPhone: finalData.emergencyContactPhone,
           allergies: finalData.allergies,
@@ -402,15 +472,16 @@ const RegisterScreen: React.FC = () => {
         // Dentist-specific fields
         ...(userType === 'dentist' && {
           licenseNumber: finalData.licenseNumber,
-          specializations: finalData.specializations || [],
+          specialization: Array.isArray(finalData.specializations) ? 
+            finalData.specializations.join(', ') : 
+            (finalData.specializations || 'General Dentistry'), // Convert array to string or use default
           yearsOfExperience: parseInt(finalData.yearsOfExperience) || 0,
-          university: finalData.university,
-          graduationYear: parseInt(finalData.graduationYear) || new Date().getFullYear(),
           clinicName: finalData.clinicName,
           clinicAddress: finalData.clinicAddress,
-          verificationDocuments: finalData.verificationDocuments,
         }),
       };
+
+      console.log('📤 Sending registration data:', registrationData);
 
       // Use AuthContext register method (handles API call and auto-login)
       await register(registrationData);
@@ -449,22 +520,27 @@ const RegisterScreen: React.FC = () => {
   const onPreviousStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
-      // Reset form and populate with existing data for the previous step
-      reset({});
     }
   };
 
   const renderStepContent = () => {
+    console.log('🎨 Rendering step content for step:', currentStep, 'userType:', userType);
+    
     switch (currentStep) {
       case 1:
+        console.log('🎨 Rendering basic info step');
         return renderBasicInfoStep();
       case 2:
+        console.log('🎨 Rendering step 2 -', userType === 'patient' ? 'patient info' : 'dentist info');
         return userType === 'patient' ? renderPatientInfoStep() : renderDentistInfoStep();
       case 3:
+        console.log('🎨 Rendering step 3 -', userType === 'dentist' ? 'dentist verification' : 'terms');
         return userType === 'dentist' ? renderDentistVerificationStep() : renderTermsStep();
       case 4:
+        console.log('🎨 Rendering step 4 - terms');
         return renderTermsStep();
       default:
+        console.log('🎨 Rendering default (null)');
         return null;
     }
   };
@@ -540,6 +616,8 @@ const RegisterScreen: React.FC = () => {
             error={!!errors.email}
             keyboardType="email-address"
             autoCapitalize="none"
+            placeholder="contoh: nama@gmail.com"
+            autoComplete="email"
             style={styles.input}
             outlineColor={errors.email ? '#E53E3E' : '#D0D0D0'}
             activeOutlineColor={errors.email ? '#E53E3E' : '#483AA0'}
@@ -604,22 +682,21 @@ const RegisterScreen: React.FC = () => {
       <Controller
         control={control}
         rules={{
-          required: 'Konfirmasi password harus diisi',
-          validate: (value) => value === watchPassword || 'Password tidak cocok',
+          required: currentStep === 1 ? 'Konfirmasi password harus diisi' : false,
         }}
         render={({ field: { onChange, onBlur, value } }) => (
           <CustomPasswordInput
             label="Konfirmasi Password *"
             value={value}
             onChangeText={onChange}
-            error={!!errors.confirmPassword}
+            error={!!(errors.confirmPassword && currentStep === 1)}
             placeholder="Masukkan ulang password"
           />
         )}
         name="confirmPassword"
         defaultValue=""
       />
-      {errors.confirmPassword && (
+      {errors.confirmPassword && currentStep === 1 && (
         <Text style={styles.errorText}>{String(errors.confirmPassword.message)}</Text>
       )}
     </View>
@@ -651,14 +728,14 @@ const RegisterScreen: React.FC = () => {
       )}
 
       <Text style={styles.sectionLabel}>Jenis Kelamin *</Text>
-      <View style={styles.radioGroup}>
-        {['male', 'female', 'other'].map((gender) => (
-          <Controller
-            key={gender}
-            control={control}
-            rules={{ required: 'Jenis kelamin harus dipilih' }}
-            render={({ field: { onChange, value } }) => (
+      <Controller
+        control={control}
+        rules={{ required: 'Jenis kelamin harus dipilih' }}
+        render={({ field: { onChange, value } }) => (
+          <View style={styles.radioGroup}>
+            {['male', 'female', 'other'].map((gender) => (
               <TouchableOpacity
+                key={gender}
                 style={styles.radioOption}
                 onPress={() => onChange(gender)}
               >
@@ -670,16 +747,26 @@ const RegisterScreen: React.FC = () => {
                   {gender === 'male' ? 'Laki-laki' : gender === 'female' ? 'Perempuan' : 'Lainnya'}
                 </Text>
               </TouchableOpacity>
-            )}
-            name="gender"
-            defaultValue={formData.gender || ''}
-          />
-        ))}
-      </View>
+            ))}
+          </View>
+        )}
+        name="gender"
+        defaultValue={formData.gender || ''}
+      />
 
       <Controller
         control={control}
-        rules={{ required: 'Nama kontak darurat harus diisi' }}
+        rules={{ 
+          required: 'Nama kontak darurat harus diisi',
+          minLength: {
+            value: 2,
+            message: 'Nama minimal 2 karakter'
+          },
+          pattern: {
+            value: /^[a-zA-Z\s]+$/,
+            message: 'Nama hanya boleh berisi huruf dan spasi'
+          }
+        }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             label="Nama Kontak Darurat *"
@@ -688,9 +775,13 @@ const RegisterScreen: React.FC = () => {
             onBlur={onBlur}
             onChangeText={onChange}
             error={!!errors.emergencyContactName}
+            placeholder="Contoh: Budi Santoso"
             style={styles.input}
             outlineColor={errors.emergencyContactName ? '#E53E3E' : '#D0D0D0'}
             activeOutlineColor={errors.emergencyContactName ? '#E53E3E' : '#483AA0'}
+            keyboardType="default"
+            autoCapitalize="words"
+            autoComplete="name"
           />
         )}
         name="emergencyContactName"
@@ -723,6 +814,74 @@ const RegisterScreen: React.FC = () => {
       {errors.emergencyContactPhone && (
         <Text style={styles.errorText}>{String(errors.emergencyContactPhone.message)}</Text>
       )}
+
+      <Controller
+        control={control}
+        rules={{ required: 'Alamat harus diisi' }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            label="Alamat Lengkap *"
+            mode="outlined"
+            value={value}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            error={!!errors.address}
+            multiline
+            numberOfLines={3}
+            placeholder="Masukkan alamat lengkap tempat tinggal"
+            style={styles.input}
+            outlineColor={errors.address ? '#E53E3E' : '#D0D0D0'}
+            activeOutlineColor={errors.address ? '#E53E3E' : '#483AA0'}
+          />
+        )}
+        name="address"
+        defaultValue={formData.address || ''}
+      />
+      {errors.address && (
+        <Text style={styles.errorText}>{String(errors.address.message)}</Text>
+      )}
+
+      <Controller
+        control={control}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            label="Alergi (jika ada)"
+            mode="outlined"
+            value={value}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            multiline
+            numberOfLines={2}
+            placeholder="Contoh: Penisilin, makanan laut, debu, atau kosongkan jika tidak ada"
+            style={styles.input}
+            outlineColor="#D0D0D0"
+            activeOutlineColor="#483AA0"
+          />
+        )}
+        name="allergies"
+        defaultValue={formData.allergies || ''}
+      />
+
+      <Controller
+        control={control}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            label="Riwayat Medis (jika ada)"
+            mode="outlined"
+            value={value}
+            onBlur={onBlur}
+            onChangeText={onChange}
+            multiline
+            numberOfLines={3}
+            placeholder="Contoh: Diabetes, hipertensi, penyakit jantung, atau kosongkan jika tidak ada"
+            style={styles.input}
+            outlineColor="#D0D0D0"
+            activeOutlineColor="#483AA0"
+          />
+        )}
+        name="medicalHistory"
+        defaultValue={formData.medicalHistory || ''}
+      />
     </View>
   );
 
@@ -1350,7 +1509,88 @@ const RegisterScreen: React.FC = () => {
           <View style={styles.buttonContainer}>
             <Button
               mode="contained"
-              onPress={handleSubmit(onNextStep)}
+              onPress={handleSubmit((data) => {
+                console.log('🔘 Form submitted successfully with data:', data);
+                console.log('📋 Current step:', currentStep);
+                onNextStep(data);
+              }, (errors) => {
+                console.log('❌ Form validation failed with errors:', errors);
+                console.log('📋 Current step:', currentStep);
+                
+                // Filter errors to only show relevant ones for current step
+                const relevantErrors: any = {};
+                
+                if (currentStep === 1) {
+                  // Step 1: Basic info fields
+                  const step1Fields = ['firstName', 'lastName', 'email', 'phoneNumber', 'password', 'confirmPassword'];
+                  step1Fields.forEach(field => {
+                    if (errors[field]) {
+                      relevantErrors[field] = errors[field];
+                    }
+                  });
+                } else if (currentStep === 2) {
+                  // Step 2: Role-specific fields
+                  if (userType === 'patient') {
+                    const patientFields = ['dateOfBirth', 'gender', 'emergencyContactName', 'emergencyContactPhone', 'address'];
+                    patientFields.forEach(field => {
+                      if (errors[field]) {
+                        relevantErrors[field] = errors[field];
+                      }
+                    });
+                  } else {
+                    const dentistFields = ['licenseNumber', 'yearsOfExperience', 'university', 'graduationYear', 'clinicName', 'clinicAddress'];
+                    dentistFields.forEach(field => {
+                      if (errors[field]) {
+                        relevantErrors[field] = errors[field];
+                      }
+                    });
+                  }
+                } else if (currentStep === 3) {
+                  // Step 3: Terms or verification
+                  if (userType === 'dentist') {
+                    if (errors.verificationDocuments) {
+                      relevantErrors.verificationDocuments = errors.verificationDocuments;
+                    }
+                  } else {
+                    const termsFields = ['acceptTerms', 'acceptPrivacy'];
+                    termsFields.forEach(field => {
+                      if (errors[field]) {
+                        relevantErrors[field] = errors[field];
+                      }
+                    });
+                  }
+                } else if (currentStep === 4) {
+                  // Step 4: Final terms for dentist
+                  const termsFields = ['acceptTerms', 'acceptPrivacy'];
+                  termsFields.forEach(field => {
+                    if (errors[field]) {
+                      relevantErrors[field] = errors[field];
+                    }
+                  });
+                }
+                
+                console.log('🎯 Relevant errors for step', currentStep, ':', relevantErrors);
+                
+                // Show first relevant validation error
+                const firstRelevantError = Object.values(relevantErrors)[0] as any;
+                if (firstRelevantError && firstRelevantError.message) {
+                  Alert.alert(
+                    'Form Tidak Valid',
+                    String(firstRelevantError.message),
+                    [{ text: 'OK' }]
+                  );
+                } else {
+                  // Fallback: show any error
+                  const firstError = Object.values(errors)[0] as any;
+                  if (firstError && firstError.message) {
+                    Alert.alert(
+                      'Form Tidak Valid', 
+                      `${String(firstError.message)} (Debug: ${Object.keys(errors).join(', ')})`,
+                      [{ text: 'OK' }]
+                    );
+                  }
+                }
+              })}
               loading={isLoading}
               disabled={isLoading}
               style={styles.nextButton}

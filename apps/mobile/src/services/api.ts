@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User, UserRole } from '@dentalization/shared-types';
+import { User, UserRole } from '../types/auth';
 import { getApiBaseUrl, APP_CONFIG } from '../config/app';
 
 // API Configuration

@@ -7,6 +7,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "server": "node simple-server.js",
+    "server:dev": "npm run build && npm run server",
+    "api": "node simple-server.js",
     "clean": "rm -rf dist",
     "type-check": "tsc --noEmit",
     "db:generate": "prisma generate",
@@ -19,6 +22,11 @@
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "prisma": "^5.7.1"
   },
   "devDependencies": {

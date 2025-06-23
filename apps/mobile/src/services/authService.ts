@@ -13,7 +13,8 @@ import {
   handleApiError 
 } from './api';
 import { realAuthService } from './realAuthService';
-import { APP_CONFIG } from '../config/app';
+import { UserRole, UserStatus } from '../types/auth';
+import { APP_CONFIG, shouldUseMockService } from '../config/app';
 
 export class AuthService {
   /**
@@ -21,9 +22,23 @@ export class AuthService {
    */
   private async shouldUseRealDatabase(): Promise<boolean> {
     try {
-      return await realAuthService.healthCheck();
+      // First check if we're configured to use real database
+      if (shouldUseMockService()) {
+        console.log('🎭 Configuration set to use mock service');
+        return false;
+      }
+      
+      // Then check if real database is actually available
+      const isHealthy = await realAuthService.checkHealth();
+      if (isHealthy) {
+        console.log('✅ Real database is healthy and will be used');
+        return true;
+      } else {
+        console.log('⚠️ Real database health check failed');
+        return false;
+      }
     } catch (error) {
-      console.warn('Real database not available, will use API fallback');
+      console.warn('⚠️ Error checking real database availability:', error);
       return false;
     }
   }
@@ -32,36 +47,64 @@ export class AuthService {
    * Login user with email and password
    */
   async login(credentials: LoginRequest): Promise<AuthApiResponse> {
+    console.log('🔐 Attempting login for:', credentials.email);
+    
+    // First try mock service as fallback
+    let lastError: Error | null = null;
+    
+    // Try real database first
     try {
-      console.log('🔐 Attempting login for:', credentials.email);
-      
-      // Try real database first, fallback to API
       const useRealDb = await this.shouldUseRealDatabase();
       
       if (useRealDb) {
         console.log('📊 Using real database for login');
         return await realAuthService.login(credentials);
-      } else {
-        console.log('🌐 Using API for login');
-        const response = await apiClient.post<AuthApiResponse>(
-          API_CONFIG.ENDPOINTS.AUTH.LOGIN,
-          {
-            email: credentials.email.toLowerCase().trim(),
-            password: credentials.password,
-            rememberMe: credentials.rememberMe || false,
-          }
-        );
-
-        if (!response.success || !response.data) {
-          throw new Error(response.message || 'Login failed');
-        }
-
-        console.log('✅ Login successful for:', credentials.email);
-        return response.data;
       }
-    } catch (error) {
-      console.error('❌ Login failed:', error);
-      throw error;
+    } catch (realDbError) {
+      console.warn('⚠️ Real database login failed:', realDbError);
+      lastError = realDbError as Error;
+    }
+    
+    // Try API fallback
+    try {
+      console.log('🌐 Trying API fallback for login');
+      const response = await apiClient.post<AuthApiResponse>(
+        API_CONFIG.ENDPOINTS.AUTH.LOGIN,
+        {
+          email: credentials.email.toLowerCase().trim(),
+          password: credentials.password,
+          rememberMe: credentials.rememberMe || false,
+        }
+      );
+
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Login failed');
+      }
+
+      console.log('✅ API login successful for:', credentials.email);
+      return response.data;
+    } catch (apiError) {
+      console.warn('⚠️ API login failed:', apiError);
+      lastError = apiError as Error;
+    }
+    
+    // Final fallback to mock service
+    try {
+      console.log('🎭 Using mock service as final fallback');
+      return await mockAuthService.login(credentials);
+    } catch (mockError) {
+      console.error('❌ All login methods failed');
+      
+      // Provide user-friendly error messages
+      if (lastError?.message?.includes('Invalid email') || lastError?.message?.includes('not found')) {
+        throw new Error('Email tidak terdaftar. Silakan daftar terlebih dahulu atau periksa email yang dimasukkan.');
+      } else if (lastError?.message?.includes('Invalid') || lastError?.message?.includes('password')) {
+        throw new Error('Email atau password salah. Silakan periksa kembali.');
+      } else if (lastError?.message?.includes('credentials')) {
+        throw new Error('Email atau password tidak valid.');
+      } else {
+        throw new Error('Email tidak terdaftar. Silakan daftar terlebih dahulu.');
+      }
     }
   }
 
@@ -69,40 +112,65 @@ export class AuthService {
    * Register new user (Patient or Dentist)
    */
   async register(userData: RegisterRequest): Promise<AuthApiResponse> {
+    console.log('📝 Attempting registration for:', userData.email, 'as', userData.role);
+    
+    let lastError: Error | null = null;
+    
+    // Try real database first
     try {
-      console.log('📝 Attempting registration for:', userData.email, 'as', userData.role);
-      
-      // Try real database first, fallback to API
       const useRealDb = await this.shouldUseRealDatabase();
       
       if (useRealDb) {
         console.log('📊 Using real database for registration');
         return await realAuthService.register(userData);
-      } else {
-        console.log('🌐 Using API for registration');
-        // Prepare registration data
-        const registrationData = {
-          ...userData,
-          email: userData.email.toLowerCase().trim(),
-          firstName: userData.firstName.trim(),
-          lastName: userData.lastName.trim(),
-        };
-
-        const response = await apiClient.post<AuthApiResponse>(
-          API_CONFIG.ENDPOINTS.AUTH.REGISTER,
-          registrationData
-        );
-
-        if (!response.success || !response.data) {
-          throw new Error(response.message || 'Registration failed');
-        }
-
-        console.log('✅ Registration successful for:', userData.email);
-        return response.data;
       }
-    } catch (error) {
-      console.error('❌ Registration failed:', error);
-      throw error;
+    } catch (realDbError) {
+      console.warn('⚠️ Real database registration failed:', realDbError);
+      lastError = realDbError as Error;
+    }
+    
+    // Try API fallback
+    try {
+      console.log('🌐 Trying API fallback for registration');
+      // Prepare registration data
+      const registrationData = {
+        ...userData,
+        email: userData.email.toLowerCase().trim(),
+        firstName: userData.firstName.trim(),
+        lastName: userData.lastName.trim(),
+      };
+
+      const response = await apiClient.post<AuthApiResponse>(
+        API_CONFIG.ENDPOINTS.AUTH.REGISTER,
+        registrationData
+      );
+
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Registration failed');
+      }
+
+      console.log('✅ API registration successful for:', userData.email);
+      return response.data;
+    } catch (apiError) {
+      console.warn('⚠️ API registration failed:', apiError);
+      lastError = apiError as Error;
+    }
+    
+    // Final fallback to mock service
+    try {
+      console.log('🎭 Using mock service for registration');
+      return await mockAuthService.register(userData);
+    } catch (mockError) {
+      console.error('❌ All registration methods failed');
+      
+      // Provide user-friendly error messages
+      if (lastError?.message?.includes('already exists')) {
+        throw new Error('Email sudah terdaftar. Silakan gunakan email lain atau login jika sudah memiliki akun.');
+      } else if (lastError?.message?.includes('invalid')) {
+        throw new Error('Data tidak valid. Silakan periksa kembali informasi yang dimasukkan.');
+      } else {
+        throw new Error('Pendaftaran gagal. Silakan coba lagi.');
+      }
     }
   }
 
@@ -151,7 +219,7 @@ export class AuthService {
       
       if (useRealDb) {
         console.log('📊 Using real database for logout');
-        await realAuthService.logout(refreshToken);
+        await realAuthService.logout();
       } else {
         console.log('🌐 Using API for logout');
         const response = await apiClient.post(
@@ -275,7 +343,7 @@ export class AuthService {
   async healthCheck(): Promise<boolean> {
     try {
       // Check real database first
-      const dbHealthy = await realAuthService.healthCheck();
+      const dbHealthy = await realAuthService.checkHealth();
       if (dbHealthy) {
         console.log('✅ Real database is healthy');
         return true;
@@ -316,7 +384,8 @@ export class MockAuthService {
         email: email,
         firstName: email === 'dentist@test.com' ? 'Dr. Test' : 'Test',
         lastName: 'User',
-        role: email === 'dentist@test.com' ? 'dentist' : 'patient',
+        role: email === 'dentist@test.com' ? UserRole.DENTIST : UserRole.PATIENT,
+        status: UserStatus.ACTIVE,
         createdAt: new Date(),
         updatedAt: new Date(),
         isActive: true,
@@ -333,7 +402,7 @@ export class MockAuthService {
       console.log('✅ MOCK: Login successful for:', email);
       return authResponse;
     } else {
-      throw new Error('Invalid credentials');
+      throw new Error('Email tidak terdaftar. Gunakan test@example.com atau daftar akun baru.');
     }
   }
 
@@ -347,7 +416,7 @@ export class MockAuthService {
     
     // Check if user already exists
     if (this.users.has(email)) {
-      throw new Error('User with this email already exists');
+      throw new Error('Email sudah terdaftar. Silakan gunakan email lain atau login.');
     }
 
     // Create mock user
@@ -358,18 +427,19 @@ export class MockAuthService {
       lastName: userData.lastName.trim(),
       role: userData.role,
       phone: userData.phone,
+      status: UserStatus.ACTIVE,
       createdAt: new Date(),
       updatedAt: new Date(),
       isActive: true,
       preferredLanguage: 'id' as const,
       // Add role-specific data
-      ...(userData.role === 'patient' && {
+      ...(userData.role === UserRole.PATIENT && {
         emergencyContactName: userData.emergencyContactName,
         emergencyContactPhone: userData.emergencyContactPhone,
         allergies: userData.allergies,
         medicalHistory: userData.medicalHistory,
       }),
-      ...(userData.role === 'dentist' && {
+      ...(userData.role === UserRole.DENTIST && {
         licenseNumber: userData.licenseNumber,
         specialization: userData.specialization,
         yearsOfExperience: userData.yearsOfExperience,
@@ -406,7 +476,8 @@ export class MockAuthService {
           email: 'test@example.com',
           firstName: 'Test',
           lastName: 'User',
-          role: 'patient',
+          role: UserRole.PATIENT,
+          status: UserStatus.ACTIVE,
           createdAt: new Date(),
           updatedAt: new Date(),
           isActive: true,

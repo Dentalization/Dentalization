@@ -19,8 +19,8 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Export services (commented out for now due to type issues)
-// export * from './services';
+// Export services
+export * from './services';
 
 // Database health check
 export async function checkDatabaseHealth(): Promise<boolean> {

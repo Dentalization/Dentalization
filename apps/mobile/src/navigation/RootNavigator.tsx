@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 
 import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../types/auth';
 import AuthNavigator from './AuthNavigator';
 import PatientNavigator from './PatientNavigator';
 import DentistNavigator from './DentistNavigator';
@@ -22,11 +23,12 @@ const RootNavigator: React.FC = () => {
 
   // Role-based navigation
   switch (userRole) {
-    case 'patient':
+    case UserRole.PATIENT:
       return <PatientNavigator />;
-    case 'dentist':
-    case 'clinic_staff': // Clinic staff uses dentist interface
+    case UserRole.DENTIST:
       return <DentistNavigator />;
+    case UserRole.ADMIN:
+      return <DentistNavigator />; // Admin uses dentist interface for now
     default:
       return <AuthNavigator />; // Redirect to auth for unknown roles
   }

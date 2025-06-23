@@ -121,13 +121,27 @@ const LoginScreen: React.FC = () => {
     control,
     handleSubmit,
     formState: { errors },
+    trigger,
+    watch,
   } = useForm<LoginFormData>({
+    mode: 'onChange', // Enable real-time validation
     defaultValues: {
       email: '',
       password: '',
       rememberMe: false,
     },
   });
+
+  // Watch email for real-time feedback
+  const emailValue = watch('email');
+
+  // Function to get email validation status
+  const getEmailValidationStatus = () => {
+    if (!emailValue || emailValue.length === 0) return 'empty';
+    if (errors.email) return 'invalid';
+    if (emailValue.includes('@') && emailValue.includes('.') && emailValue.length > 5) return 'valid';
+    return 'typing';
+  };
 
   const getUserTypeLabel = () => {
     switch (userType) {
@@ -144,6 +158,11 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
     
     try {
+      console.log('Login data:', {
+        email: data.email,
+        rememberMe: data.rememberMe
+      });
+      
       await login({
         email: data.email,
         password: data.password,
@@ -199,77 +218,153 @@ const LoginScreen: React.FC = () => {
         <View style={styles.form}>
           {/* Email Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email *</Text>
+            <View style={styles.inputLabelContainer}>
+              <Text style={styles.inputLabel}>Email *</Text>
+              {getEmailValidationStatus() === 'valid' && (
+                <Text style={styles.validationIndicator}>✅</Text>
+              )}
+              {getEmailValidationStatus() === 'invalid' && (
+                <Text style={styles.validationIndicator}>❌</Text>
+              )}
+              {getEmailValidationStatus() === 'typing' && emailValue.length > 0 && (
+                <Text style={styles.validationIndicator}>⏳</Text>
+              )}
+            </View>
             <Controller
               control={control}
               rules={{
                 required: 'Email harus diisi',
                 pattern: {
                   value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Format email tidak valid',
+                  message: 'Format email tidak valid. Contoh: nama@email.com',
                 },
+                validate: (value) => {
+                  const trimmedValue = value.trim();
+                  if (!trimmedValue) return 'Email harus diisi';
+                  if (!trimmedValue.includes('@')) return 'Email harus mengandung tanda @';
+                  if (!trimmedValue.includes('.')) return 'Email harus mengandung domain (contoh: .com)';
+                  if (trimmedValue.indexOf('@') !== trimmedValue.lastIndexOf('@')) return 'Email hanya boleh mengandung satu tanda @';
+                  if (trimmedValue.startsWith('@') || trimmedValue.endsWith('@')) return 'Tanda @ tidak boleh di awal atau akhir email';
+                  if (trimmedValue.includes('..')) return 'Email tidak boleh mengandung titik berurutan';
+                  
+                  // Check for common typos
+                  const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'email.com'];
+                  const parts = trimmedValue.split('@');
+                  if (parts.length === 2) {
+                    const domain = parts[1].toLowerCase();
+                    if (domain === 'gmail' || domain === 'yahoo' || domain === 'hotmail' || domain === 'outlook') {
+                      return `Apakah maksud Anda ${parts[0]}@${domain}.com?`;
+                    }
+                    if (domain.endsWith('.co') && !domain.endsWith('.com')) {
+                      return `Apakah maksud Anda ${parts[0]}@${domain}m?`;
+                    }
+                  }
+                  
+                  return true;
+                }
               }}
               render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  placeholder="Masukan email"
-                  mode="outlined"
-                  value={value}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  error={!!errors.email}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  style={styles.input}
-                  outlineColor={errors.email ? '#E53E3E' : '#D0D0D0'}
-                  activeOutlineColor={errors.email ? '#E53E3E' : '#483AA0'}
-                />
+                <View>
+                  <TextInput
+                    placeholder="contoh: nama@gmail.com, user@email.com"
+                    mode="outlined"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      // Trigger validation immediately for better UX
+                      if (text.length > 0) {
+                        trigger('email');
+                      }
+                    }}
+                    error={!!errors.email}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    style={styles.input}
+                    outlineColor={
+                      getEmailValidationStatus() === 'valid' ? '#22C55E' :
+                      errors.email ? '#E53E3E' : '#D0D0D0'
+                    }
+                    activeOutlineColor={
+                      getEmailValidationStatus() === 'valid' ? '#22C55E' :
+                      errors.email ? '#E53E3E' : '#483AA0'
+                    }
+                  />
+                  {/* Real-time validation hints */}
+                  {emailValue.length > 0 && !errors.email && getEmailValidationStatus() !== 'valid' && (
+                    <View style={styles.validationHints}>
+                      <Text style={styles.hintText}>
+                        {!emailValue.includes('@') && '• Tambahkan tanda @ '}
+                        {emailValue.includes('@') && !emailValue.includes('.') && '• Tambahkan domain (contoh: .com, .id) '}
+                        {emailValue.includes('@') && emailValue.includes('.') && emailValue.length < 6 && '• Email terlalu pendek '}
+                        {emailValue.includes('@') && emailValue.endsWith('@') && '• Tambahkan domain setelah @ '}
+                      </Text>
+                    </View>
+                  )}
+                  {/* Suggestions for common email providers */}
+                  {emailValue.includes('@') && !errors.email && getEmailValidationStatus() !== 'valid' && (
+                    <View style={styles.emailSuggestions}>
+                      <Text style={styles.suggestionText}>💡 Contoh: @gmail.com, @yahoo.com, @outlook.com</Text>
+                    </View>
+                  )}
+                  {getEmailValidationStatus() === 'valid' && (
+                    <Text style={styles.successText}>✅ Format email sudah benar</Text>
+                  )}
+                </View>
               )}
               name="email"
             />
             {errors.email && (
-              <Text style={styles.errorText}>{errors.email.message}</Text>
+              <Text style={styles.errorText}>⚠️ {errors.email.message}</Text>
             )}
           </View>
 
           {/* Password Input */}
-          <Controller
-            control={control}
-            rules={{
-              required: 'Password harus diisi',
-              minLength: {
-                value: 6,
-                message: 'Password minimal 6 karakter',
-              },
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <CustomPasswordInput
-                label="Password *"
-                value={value}
-                onChangeText={onChange}
-                error={!!errors.password}
-                placeholder="Masukkan password"
-              />
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Password *</Text>
+            <Controller
+              control={control}
+              rules={{
+                required: 'Password harus diisi',
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <CustomPasswordInput
+                  label=""
+                  value={value}
+                  onChangeText={onChange}
+                  error={!!errors.password}
+                  placeholder="Masukkan password"
+                />
+              )}
+              name="password"
+            />
+            {errors.password && (
+              <Text style={styles.errorText}>⚠️ {errors.password.message}</Text>
             )}
-            name="password"
-          />
-          {errors.password && (
-            <Text style={styles.errorText}>{errors.password.message}</Text>
-          )}
+          </View>
 
           {/* Remember Me & Forgot Password */}
           <View style={styles.optionsRow}>
             <Controller
               control={control}
               render={({ field: { onChange, value } }) => (
-                <View style={styles.checkboxContainer}>
-                  <Checkbox
-                    status={value ? 'checked' : 'unchecked'}
-                    onPress={() => onChange(!value)}
-                    color="#483AA0"
-                  />
+                <TouchableOpacity 
+                  style={styles.checkboxContainer}
+                  onPress={() => onChange(!value)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    styles.customCheckbox,
+                    value && styles.customCheckboxChecked
+                  ]}>
+                    {value && (
+                      <Text style={styles.checkboxCheckmark}>✓</Text>
+                    )}
+                  </View>
                   <Text style={styles.checkboxLabel}>Ingat saya</Text>
-                </View>
+                </TouchableOpacity>
               )}
               name="rememberMe"
             />
@@ -297,6 +392,7 @@ const LoginScreen: React.FC = () => {
             <Text style={styles.testInfoText}>Untuk testing:</Text>
             <Text style={styles.testCredentials}>Email: test@example.com</Text>
             <Text style={styles.testCredentials}>Password: password</Text>
+            <Text style={styles.testCredentials}>Atau daftar akun baru</Text>
           </View>
 
           {/* Register Link */}
@@ -374,11 +470,45 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: 16,
   },
+  inputLabelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
     color: '#333333',
-    marginBottom: 8,
+  },
+  validationIndicator: {
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  validationHints: {
+    marginTop: 4,
+    paddingHorizontal: 12,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#FFA500',
+    fontStyle: 'italic',
+  },
+  emailSuggestions: {
+    marginTop: 4,
+    paddingHorizontal: 12,
+  },
+  suggestionText: {
+    fontSize: 11,
+    color: '#666666',
+    fontStyle: 'italic',
+  },
+  successText: {
+    fontSize: 12,
+    color: '#22C55E',
+    marginTop: 4,
+    paddingHorizontal: 12,
+    fontWeight: '500',
   },
   errorText: {
     color: '#E53E3E',
@@ -396,10 +526,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  customCheckbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#483AA0',
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  customCheckboxChecked: {
+    backgroundColor: '#483AA0',
+    borderColor: '#483AA0',
+  },
+  checkboxCheckmark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   checkboxLabel: {
     fontSize: 14,
     color: '#333333',
-    marginLeft: 8,
+    marginLeft: 0,
   },
   forgotPasswordText: {
     fontSize: 14,

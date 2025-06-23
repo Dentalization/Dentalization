@@ -15,10 +15,7 @@
     "clean": "rm -rf node_modules .expo"
   },
   "dependencies": {
-    "@dentalization/constants": "file:../../packages/constants",
     "@dentalization/database-app": "file:../database",
-    "@dentalization/shared-types": "file:../../packages/shared-types",
-    "@dentalization/utils": "file:../../packages/utils",
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "1.21.0",
     "@react-navigation/bottom-tabs": "^6.5.11",

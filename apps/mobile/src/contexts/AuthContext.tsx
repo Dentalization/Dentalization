@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User, UserRole } from '@dentalization/shared-types';
+import { User, UserRole } from '../types/auth';
 import { authService, mockAuthService } from '../services/authService';
 import { APP_CONFIG, shouldUseMockService, log, logError } from '../config/app';
 

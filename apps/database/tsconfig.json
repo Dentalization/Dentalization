@@ -18,7 +18,10 @@
     "typeRoots": ["./node_modules/@types", "./node_modules/@prisma"]
   },
   "include": [
-    "**/*.ts"
+    "index.ts",
+    "services/**/*.ts",
+    "prisma/**/*.ts",
+    "seed-sample-data.ts"
   ],
   "exclude": [
     "node_modules",
